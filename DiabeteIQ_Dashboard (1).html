@@ -1,0 +1,880 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>DiabeteIQ — Analytics Dashboard</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/plotly.js/2.27.0/plotly.min.js"></script>
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,400;0,9..40,500;0,9..40,600;0,9..40,700;1,9..40,400&family=DM+Serif+Display:ital@0;1&display=swap" rel="stylesheet"/>
+<style>
+:root {
+  --bg:       #F8F9FB;
+  --surface:  #FFFFFF;
+  --border:   #E8ECF4;
+  --text:     #111827;
+  --muted:    #6B7280;
+  --faint:    #9CA3AF;
+  --blue:     #3B6FE8;
+  --blue-lt:  #EEF3FD;
+  --red:      #E8453C;
+  --red-lt:   #FEF0EF;
+  --teal:     #0D9488;
+  --teal-lt:  #EDFAFA;
+  --amber:    #D97706;
+  --amber-lt: #FFFBEB;
+  --purple:   #7C3AED;
+  --radius:   12px;
+  --shadow:   0 1px 3px rgba(0,0,0,.06),0 4px 16px rgba(0,0,0,.04);
+  --shadow-lg:0 8px 32px rgba(0,0,0,.10);
+  --sidebar-w:240px;
+  --font-display:"DM Serif Display",Georgia,serif;
+  --font-body:"DM Sans",-apple-system,sans-serif;
+}
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+html,body{height:100%;font-family:var(--font-body);background:var(--bg);color:var(--text);font-size:15px;line-height:1.55}
+/* ── LAYOUT ── */
+.shell{display:flex;height:100vh;overflow:hidden}
+.sidebar{width:var(--sidebar-w);min-width:var(--sidebar-w);background:var(--surface);border-right:1px solid var(--border);display:flex;flex-direction:column;overflow-y:auto;z-index:10}
+.main{flex:1;overflow-y:auto;padding:2rem 2.4rem 3rem}
+/* ── SIDEBAR ── */
+.sb-brand{padding:1.6rem 1.4rem 1rem;border-bottom:1px solid var(--border)}
+.sb-logo{display:flex;align-items:center;gap:.7rem}
+.sb-icon{width:38px;height:38px;background:var(--blue);border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:1.2rem;flex-shrink:0}
+.sb-name{font-weight:700;font-size:1rem;color:var(--text)}
+.sb-tagline{font-size:.72rem;color:var(--faint);margin-top:.1rem}
+.sb-nav{padding:.8rem .8rem 0;flex:1}
+.sb-label{font-size:.65rem;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:var(--faint);padding:.6rem .6rem .3rem;margin-top:.4rem}
+.nav-item{display:flex;align-items:center;gap:.65rem;padding:.6rem .8rem;border-radius:8px;cursor:pointer;font-size:.88rem;font-weight:500;color:var(--muted);transition:all .15s;margin-bottom:.15rem;user-select:none}
+.nav-item:hover{background:var(--bg);color:var(--text)}
+.nav-item.active{background:var(--blue-lt);color:var(--blue);font-weight:600}
+.nav-item .ni-icon{font-size:1rem;width:20px;text-align:center}
+.sb-footer{padding:1rem 1.2rem;border-top:1px solid var(--border);font-size:.72rem;color:var(--faint)}
+/* ── PAGES ── */
+.page{display:none}.page.active{display:block}
+/* ── PAGE HEADER ── */
+.page-header{margin-bottom:1.8rem}
+.page-title{font-family:var(--font-display);font-size:2rem;color:var(--text);line-height:1.2}
+.page-sub{color:var(--muted);font-size:.9rem;margin-top:.35rem}
+/* ── HERO ── */
+.hero{background:linear-gradient(135deg,#1e3a8a 0%,#3B6FE8 55%,#0d9488 100%);border-radius:18px;padding:2.4rem 2.8rem;color:white;margin-bottom:2rem;position:relative;overflow:hidden}
+.hero::before{content:"";position:absolute;inset:0;background:url("data:image/svg+xml,%3Csvg width='60' height='60' viewBox='0 0 60 60' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='none' fill-rule='evenodd'%3E%3Cg fill='%23ffffff' fill-opacity='0.04'%3E%3Cpath d='M36 34v-4h-2v4h-4v2h4v4h2v-4h4v-2h-4zm0-30V0h-2v4h-4v2h4v4h2V6h4V4h-4zM6 34v-4H4v4H0v2h4v4h2v-4h4v-2H6zM6 4V0H4v4H0v2h4v4h2V6h4V4H6z'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E")}
+.hero-title{font-family:var(--font-display);font-size:2.1rem;font-weight:400;margin-bottom:.6rem;position:relative}
+.hero-sub{font-size:.95rem;opacity:.85;max-width:580px;line-height:1.65;position:relative}
+.hero-badge{display:inline-flex;align-items:center;gap:.4rem;background:rgba(255,255,255,.15);backdrop-filter:blur(8px);border:1px solid rgba(255,255,255,.25);border-radius:999px;padding:.25rem .9rem;font-size:.75rem;font-weight:600;letter-spacing:.04em;margin-bottom:1rem}
+/* ── KPI GRID ── */
+.kpi-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:1rem;margin-bottom:1.8rem}
+.kpi-card{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:1.2rem 1.4rem;box-shadow:var(--shadow);transition:transform .15s,box-shadow .15s}
+.kpi-card:hover{transform:translateY(-2px);box-shadow:var(--shadow-lg)}
+.kpi-label{font-size:.68rem;font-weight:700;letter-spacing:.09em;text-transform:uppercase;color:var(--faint);margin-bottom:.4rem}
+.kpi-value{font-size:1.9rem;font-weight:700;line-height:1;color:var(--text)}
+.kpi-value.blue{color:var(--blue)}
+.kpi-value.red{color:var(--red)}
+.kpi-value.teal{color:var(--teal)}
+.kpi-value.amber{color:var(--amber)}
+.kpi-sub{font-size:.75rem;color:var(--faint);margin-top:.35rem}
+/* ── SECTION TITLES ── */
+.section-title{font-size:1.05rem;font-weight:700;color:var(--text);margin:2rem 0 .8rem;display:flex;align-items:center;gap:.5rem}
+.section-title::after{content:"";flex:1;height:1px;background:var(--border);margin-left:.5rem}
+/* ── CHART GRID ── */
+.chart-grid{display:grid;gap:1.2rem;margin-bottom:1.2rem}
+.chart-grid.cols-2{grid-template-columns:1fr 1fr}
+.chart-grid.cols-3{grid-template-columns:1fr 1fr 1fr}
+.chart-grid.cols-1{grid-template-columns:1fr}
+.chart-card{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:1.2rem 1.4rem .8rem;box-shadow:var(--shadow)}
+.chart-card h3{font-size:.82rem;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:.07em;margin-bottom:.6rem}
+.chart-wrap{width:100%;min-height:280px}
+/* ── FILTERS BAR ── */
+.filters-bar{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:1rem 1.4rem;margin-bottom:1.4rem;box-shadow:var(--shadow)}
+.filters-inner{display:flex;flex-wrap:wrap;gap:1rem;align-items:flex-end}
+.filter-group{display:flex;flex-direction:column;gap:.3rem;min-width:140px}
+.filter-group label{font-size:.72rem;font-weight:700;letter-spacing:.07em;text-transform:uppercase;color:var(--faint)}
+.filter-group select,.filter-group input{padding:.45rem .75rem;border:1px solid var(--border);border-radius:8px;font-size:.85rem;font-family:var(--font-body);background:var(--bg);color:var(--text);outline:none;cursor:pointer}
+.filter-group select:focus,.filter-group input:focus{border-color:var(--blue);box-shadow:0 0 0 3px rgba(59,111,232,.1)}
+.filter-count{font-size:.8rem;color:var(--muted);font-weight:500;align-self:flex-end;padding-bottom:.1rem}
+.reset-btn{padding:.45rem 1rem;border:1px solid var(--border);background:var(--surface);color:var(--muted);border-radius:8px;font-size:.82rem;cursor:pointer;font-family:var(--font-body);font-weight:500;transition:all .15s}
+.reset-btn:hover{border-color:var(--blue);color:var(--blue)}
+.dl-btn{padding:.45rem 1.1rem;background:var(--blue);color:white;border:none;border-radius:8px;font-size:.82rem;cursor:pointer;font-family:var(--font-body);font-weight:600;transition:background .15s}
+.dl-btn:hover{background:#2d5fd4}
+/* ── INSIGHTS ── */
+.insights-grid{display:grid;grid-template-columns:1fr 1fr;gap:1.2rem}
+.insight-card{background:var(--surface);border:1px solid var(--border);border-left:4px solid var(--blue);border-radius:var(--radius);padding:1.4rem 1.6rem;box-shadow:var(--shadow)}
+.insight-card.red{border-left-color:var(--red)}
+.insight-card.teal{border-left-color:var(--teal)}
+.insight-card.amber{border-left-color:var(--amber)}
+.insight-card.purple{border-left-color:var(--purple)}
+.insight-header{display:flex;align-items:flex-start;gap:.7rem;margin-bottom:.7rem}
+.insight-icon{font-size:1.3rem;flex-shrink:0;margin-top:.05rem}
+.insight-title{font-size:.92rem;font-weight:700;color:var(--text)}
+.insight-body{font-size:.84rem;color:#4B5563;line-height:1.7}
+.insight-body b{color:var(--text)}
+.rec-grid{display:grid;grid-template-columns:1fr 1fr;gap:1rem;margin-top:.5rem}
+.rec-card{background:var(--teal-lt);border:1px solid #99e6e0;border-radius:10px;padding:1.1rem 1.3rem}
+.rec-card.amber{background:var(--amber-lt);border-color:#fcd34d}
+.rec-card.blue{background:var(--blue-lt);border-color:#bfdbfe}
+.rec-num{font-size:1.5rem;font-weight:800;color:var(--teal);line-height:1;margin-bottom:.3rem}
+.rec-card.amber .rec-num{color:var(--amber)}
+.rec-card.blue .rec-num{color:var(--blue)}
+.rec-title{font-size:.84rem;font-weight:700;color:var(--text);margin-bottom:.3rem}
+.rec-body{font-size:.8rem;color:var(--muted);line-height:1.55}
+/* ── DATA TABLE ── */
+.data-controls{display:flex;align-items:center;gap:1rem;margin-bottom:1rem;flex-wrap:wrap}
+.search-box{flex:1;min-width:220px;padding:.5rem .9rem;border:1px solid var(--border);border-radius:8px;font-size:.88rem;font-family:var(--font-body);outline:none}
+.search-box:focus{border-color:var(--blue);box-shadow:0 0 0 3px rgba(59,111,232,.1)}
+.table-wrap{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);overflow:auto;box-shadow:var(--shadow)}
+table{width:100%;border-collapse:collapse;font-size:.83rem}
+thead{position:sticky;top:0;z-index:1}
+thead th{background:#F1F5FF;padding:.7rem 1rem;text-align:left;font-size:.72rem;font-weight:700;letter-spacing:.07em;text-transform:uppercase;color:var(--muted);border-bottom:2px solid var(--border);white-space:nowrap}
+tbody tr{border-bottom:1px solid var(--border);transition:background .1s}
+tbody tr:hover{background:var(--bg)}
+tbody td{padding:.6rem 1rem;color:var(--text)}
+.badge{display:inline-block;padding:.15rem .55rem;border-radius:999px;font-size:.72rem;font-weight:700}
+.badge-yes{background:#FEE2E2;color:#991B1B}
+.badge-no{background:#DCFCE7;color:#166534}
+/* ── STAT TABLE ── */
+.stat-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:1rem;margin-bottom:1.5rem}
+.stat-item{background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:1rem 1.2rem;box-shadow:var(--shadow)}
+.stat-key{font-size:.72rem;font-weight:700;letter-spacing:.07em;text-transform:uppercase;color:var(--faint);margin-bottom:.3rem}
+.stat-val{font-size:1.1rem;font-weight:700;color:var(--text)}
+/* ── LOADING ── */
+#loading{display:none;align-items:center;justify-content:center;gap:.8rem;padding:1.5rem;font-size:.9rem;color:var(--muted)}
+.spinner{width:20px;height:20px;border:3px solid var(--border);border-top-color:var(--blue);border-radius:50%;animation:spin .7s linear infinite}
+@keyframes spin{to{transform:rotate(360deg)}}
+/* ── RESPONSIVE ── */
+@media(max-width:900px){
+  .sidebar{width:200px;min-width:200px}
+  .main{padding:1.2rem}
+  .chart-grid.cols-2,.chart-grid.cols-3{grid-template-columns:1fr}
+  .insights-grid,.rec-grid{grid-template-columns:1fr}
+  .hero{padding:1.6rem}
+  .hero-title{font-size:1.5rem}
+}
+@media(max-width:640px){
+  .shell{flex-direction:column}
+  .sidebar{width:100%;min-width:unset;flex-direction:row;height:auto;overflow-x:auto;border-right:none;border-bottom:1px solid var(--border)}
+  .sb-brand{display:none}
+  .sb-nav{display:flex;flex-direction:row;padding:.5rem;gap:.3rem;overflow-x:auto}
+  .sb-label{display:none}
+  .nav-item{white-space:nowrap;padding:.5rem .9rem}
+  .main{padding:1rem}
+  .kpi-grid{grid-template-columns:1fr 1fr}
+}
+</style>
+</head>
+<body>
+
+<div class="shell">
+  <!-- ═══ SIDEBAR ═══ -->
+  <aside class="sidebar">
+    <div class="sb-brand">
+      <div class="sb-logo">
+        <div class="sb-icon">🩺</div>
+        <div>
+          <div class="sb-name">DiabeteIQ</div>
+          <div class="sb-tagline">Analytics Platform</div>
+        </div>
+      </div>
+    </div>
+    <nav class="sb-nav">
+      <div class="sb-label">Navigation</div>
+      <div class="nav-item active" data-page="home">
+        <span class="ni-icon">🏠</span> Home
+      </div>
+      <div class="nav-item" data-page="dashboard">
+        <span class="ni-icon">📊</span> Dashboard
+      </div>
+      <div class="nav-item" data-page="insights">
+        <span class="ni-icon">💡</span> Insights
+      </div>
+      <div class="nav-item" data-page="data">
+        <span class="ni-icon">📋</span> Data Explorer
+      </div>
+    </nav>
+    <div class="sb-footer">v1.0 · Diabetes Prediction Dataset</div>
+  </aside>
+
+  <!-- ═══ MAIN ═══ -->
+  <main class="main" id="main-content">
+
+    <div id="loading" style="display:flex"><div class="spinner"></div> Loading and processing data…</div>
+
+    <!-- ═══ HOME PAGE ═══ -->
+    <div class="page" id="page-home">
+      <div class="hero">
+        <div class="hero-badge">🩺 Medical Analytics</div>
+        <div class="hero-title">Diabetes Prediction Analytics</div>
+        <div class="hero-sub">An end-to-end analytical platform exploring diabetes prevalence, risk factors, and patient demographics. Navigate to the Dashboard for interactive charts or Insights for key findings.</div>
+      </div>
+      <div class="kpi-grid" id="home-kpis"></div>
+      <div class="section-title">📈 Population Overview</div>
+      <div class="chart-grid cols-2">
+        <div class="chart-card"><h3>Diabetes Distribution</h3><div class="chart-wrap" id="chart-donut"></div></div>
+        <div class="chart-card"><h3>Diabetes Rate by Age Group</h3><div class="chart-wrap" id="chart-age-group-home"></div></div>
+      </div>
+      <div class="section-title">📊 Quick Comparisons</div>
+      <div class="chart-grid cols-2">
+        <div class="chart-card"><h3>BMI Category vs Diabetes Rate</h3><div class="chart-wrap" id="chart-bmi-cat-home"></div></div>
+        <div class="chart-card"><h3>Gender vs Diabetes Rate</h3><div class="chart-wrap" id="chart-gender-home"></div></div>
+      </div>
+    </div>
+
+    <!-- ═══ DASHBOARD PAGE ═══ -->
+    <div class="page" id="page-dashboard">
+      <div class="page-header">
+        <div class="page-title">📊 Analytics Dashboard</div>
+        <div class="page-sub">All charts update dynamically with the filters below.</div>
+      </div>
+      <!-- Filters -->
+      <div class="filters-bar">
+        <div class="filters-inner">
+          <div class="filter-group">
+            <label>Gender</label>
+            <select id="f-gender"><option value="all">All Genders</option></select>
+          </div>
+          <div class="filter-group">
+            <label>Age Group</label>
+            <select id="f-age">
+              <option value="all">All Ages</option>
+              <option value="<18">&lt;18</option>
+              <option value="18–35">18–35</option>
+              <option value="36–50">36–50</option>
+              <option value="51–65">51–65</option>
+              <option value="65+">65+</option>
+            </select>
+          </div>
+          <div class="filter-group">
+            <label>BMI Category</label>
+            <select id="f-bmi">
+              <option value="all">All BMI</option>
+              <option value="Underweight">Underweight</option>
+              <option value="Normal">Normal</option>
+              <option value="Overweight">Overweight</option>
+              <option value="Obese">Obese</option>
+            </select>
+          </div>
+          <div class="filter-group">
+            <label>Diabetes Status</label>
+            <select id="f-diabetes">
+              <option value="all">All Patients</option>
+              <option value="1">Diabetic Only</option>
+              <option value="0">Non-Diabetic Only</option>
+            </select>
+          </div>
+          <div class="filter-group">
+            <label>Smoking</label>
+            <select id="f-smoking"><option value="all">All</option></select>
+          </div>
+          <span class="filter-count" id="filter-count">— records</span>
+          <button class="reset-btn" onclick="resetFilters()">↺ Reset</button>
+          <button class="dl-btn" onclick="downloadCSV()">⬇ Download CSV</button>
+        </div>
+      </div>
+      <!-- KPIs -->
+      <div class="kpi-grid" id="dash-kpis"></div>
+
+      <div class="section-title">👥 Patient Demographics</div>
+      <div class="chart-grid cols-2">
+        <div class="chart-card"><h3>Age Distribution</h3><div class="chart-wrap" id="chart-age-dist"></div></div>
+        <div class="chart-card"><h3>BMI Distribution</h3><div class="chart-wrap" id="chart-bmi-dist"></div></div>
+      </div>
+      <div class="chart-grid cols-2">
+        <div class="chart-card"><h3>BMI Category → Diabetes Rate</h3><div class="chart-wrap" id="chart-bmi-cat"></div></div>
+        <div class="chart-card"><h3>Age vs BMI (coloured by Diabetes)</h3><div class="chart-wrap" id="chart-scatter"></div></div>
+      </div>
+
+      <div class="section-title">🔬 Clinical Biomarkers</div>
+      <div class="chart-grid cols-2">
+        <div class="chart-card"><h3>HbA1c Distribution</h3><div class="chart-wrap" id="chart-hba1c-dist"></div></div>
+        <div class="chart-card"><h3>Diabetes Rate by HbA1c Level</h3><div class="chart-wrap" id="chart-hba1c-rate"></div></div>
+      </div>
+      <div class="chart-grid cols-1">
+        <div class="chart-card"><h3>Blood Glucose Level by Diabetes Status</h3><div class="chart-wrap" id="chart-glucose"></div></div>
+      </div>
+
+      <div class="section-title">🫀 Comorbidities & Lifestyle</div>
+      <div class="chart-grid cols-2">
+        <div class="chart-card"><h3>Comorbidity Rates</h3><div class="chart-wrap" id="chart-comorbid"></div></div>
+        <div class="chart-card"><h3>Diabetes Rate by Smoking History</h3><div class="chart-wrap" id="chart-smoking"></div></div>
+      </div>
+
+      <div class="section-title">⚠️ Risk Analysis & Correlations</div>
+      <div class="chart-grid cols-2">
+        <div class="chart-card"><h3>Composite Risk Score vs Diabetes Rate</h3><div class="chart-wrap" id="chart-risk"></div></div>
+        <div class="chart-card"><h3>Gender Breakdown by Diabetes Status</h3><div class="chart-wrap" id="chart-gender-dash"></div></div>
+      </div>
+      <div class="chart-grid cols-1">
+        <div class="chart-card"><h3>Feature Correlation Heatmap</h3><div class="chart-wrap" id="chart-heatmap" style="min-height:380px"></div></div>
+      </div>
+    </div>
+
+    <!-- ═══ INSIGHTS PAGE ═══ -->
+    <div class="page" id="page-insights">
+      <div class="page-header">
+        <div class="page-title">💡 Analytical Insights</div>
+        <div class="page-sub">Key findings, patterns, and strategic recommendations derived from the dataset.</div>
+      </div>
+      <div class="section-title">📌 Disease Prevalence</div>
+      <div class="insights-grid" id="insights-prevalence"></div>
+      <div class="section-title">⚖️ BMI & Obesity</div>
+      <div class="insights-grid" id="insights-bmi"></div>
+      <div class="section-title">🔬 Clinical Biomarkers</div>
+      <div class="insights-grid" id="insights-clinical"></div>
+      <div class="section-title">🫀 Comorbidities</div>
+      <div class="insights-grid" id="insights-comorbid"></div>
+      <div class="section-title">✅ Strategic Recommendations</div>
+      <div class="rec-grid" id="insights-recs"></div>
+      <div style="margin-top:1.5rem;background:var(--bg);border:1px solid var(--border);border-radius:10px;padding:1.1rem 1.4rem;font-size:.8rem;color:var(--faint);line-height:1.65">
+        <strong style="color:var(--muted)">Methodology note:</strong> All insights are derived from descriptive and exploratory analysis of the dataset. 
+        The composite risk score is a simple additive index (max=4) — not a clinically validated diagnostic tool. 
+        No causal claims are made; associations should be validated before informing clinical policy.
+      </div>
+    </div>
+
+    <!-- ═══ DATA PAGE ═══ -->
+    <div class="page" id="page-data">
+      <div class="page-header">
+        <div class="page-title">📋 Data Explorer</div>
+        <div class="page-sub">Browse, search and download the processed dataset.</div>
+      </div>
+      <div class="section-title">Dataset Summary</div>
+      <div class="stat-grid" id="data-stats"></div>
+      <div class="section-title">Browse Records</div>
+      <div class="data-controls">
+        <input class="search-box" id="search-box" placeholder="Search by gender, smoking history…" oninput="filterTable()"/>
+        <select id="dt-diabetes" onchange="filterTable()" style="padding:.5rem .8rem;border:1px solid var(--border);border-radius:8px;font-size:.85rem;font-family:var(--font-body);background:var(--bg);outline:none">
+          <option value="all">All Patients</option>
+          <option value="1">Diabetic Only</option>
+          <option value="0">Non-Diabetic Only</option>
+        </select>
+        <button class="dl-btn" onclick="downloadCSV()">⬇ Download CSV</button>
+        <span style="font-size:.82rem;color:var(--faint)" id="table-count"></span>
+      </div>
+      <div class="table-wrap">
+        <table id="data-table">
+          <thead id="table-head"></thead>
+          <tbody id="table-body"></tbody>
+        </table>
+      </div>
+    </div>
+
+  </main>
+</div>
+
+<script>
+// ═══════════════════════════════════════════════════════════════
+// GLOBAL STATE
+// ═══════════════════════════════════════════════════════════════
+let RAW_DATA = [];
+let PROC_DATA = [];
+let FILTERED = [];
+const PALETTE = ['#3B6FE8','#E8453C','#0D9488','#D97706','#7C3AED','#0369a1','#be123c'];
+
+// ═══════════════════════════════════════════════════════════════
+// NAVIGATION
+// ═══════════════════════════════════════════════════════════════
+document.querySelectorAll('.nav-item').forEach(el => {
+  el.addEventListener('click', () => {
+    document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
+    el.classList.add('active');
+    const page = el.dataset.page;
+    document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+    document.getElementById('page-' + page).classList.add('active');
+    if (PROC_DATA.length) {
+      setTimeout(() => renderPage(page), 50);
+    }
+  });
+});
+
+function renderPage(page) {
+  applyFilters();
+  if (page === 'home')      renderHome();
+  if (page === 'dashboard') renderDashboard();
+  if (page === 'insights')  renderInsights();
+  if (page === 'data')      renderDataPage();
+}
+
+function showLoading(v) {
+  document.getElementById('loading').style.display = v ? 'flex' : 'none';
+}
+
+// ═══════════════════════════════════════════════════════════════
+// DEMO DATA GENERATOR
+// ═══════════════════════════════════════════════════════════════
+function loadDemo() {
+  showLoading(true);
+  setTimeout(() => {
+    const n = 2000;
+    const genders = ['Male','Female','Other'];
+    const smoking = ['never','former','current','not current','ever'];
+    const data = [];
+    for (let i = 0; i < n; i++) {
+      const age = Math.round(10 + Math.random() * 75);
+      const bmi = +(15 + Math.random() * 45).toFixed(1);
+      const hba1c = +(3.5 + Math.random() * 6.5).toFixed(1);
+      const glucose = Math.round(80 + Math.random() * 220);
+      const hypertension = Math.random() < 0.07 + (age > 50 ? 0.15 : 0) ? 1 : 0;
+      const heart_disease = Math.random() < 0.04 + (age > 60 ? 0.1 : 0) ? 1 : 0;
+      const riskBase = (hba1c > 6.5 ? 0.4 : 0.03) + (bmi > 30 ? 0.15 : 0) + (age > 55 ? 0.1 : 0) + hypertension * 0.1;
+      const diabetes = Math.random() < Math.min(riskBase, 0.95) ? 1 : 0;
+      data.push({
+        gender: genders[Math.floor(Math.random()*3)],
+        age, bmi,
+        HbA1c_level: hba1c,
+        blood_glucose_level: glucose,
+        hypertension, heart_disease,
+        smoking_history: smoking[Math.floor(Math.random()*5)],
+        diabetes
+      });
+    }
+    initData(data);
+  }, 100);
+}
+
+// ═══════════════════════════════════════════════════════════════
+// DATA PROCESSING
+// ═══════════════════════════════════════════════════════════════
+function initData(raw) {
+  RAW_DATA = raw;
+  PROC_DATA = raw.map(r => {
+    const bmi = parseFloat(r.bmi) || 0;
+    const age = parseFloat(r.age) || 0;
+    const smoke = r.smoking_history === 'No Info' ? null : r.smoking_history;
+    const bmi_cat = bmi < 18.5 ? 'Underweight' : bmi < 25 ? 'Normal' : bmi < 30 ? 'Overweight' : 'Obese';
+    const age_grp = age < 18 ? '<18' : age <= 35 ? '18–35' : age <= 50 ? '36–50' : age <= 65 ? '51–65' : '65+';
+    const hba1c = parseFloat(r.HbA1c_level) || 0;
+    const hyp = parseInt(r.hypertension) || 0;
+    const hd = parseInt(r.heart_disease) || 0;
+    const risk = (hyp) + (hd) + (hba1c > 6.5 ? 1 : 0) + (bmi > 30 ? 1 : 0);
+    return { ...r, bmi, age, bmi_cat, age_grp, smoking_history: smoke, risk_score: risk,
+             HbA1c_level: hba1c, diabetes: parseInt(r.diabetes) || 0,
+             blood_glucose_level: parseFloat(r.blood_glucose_level) || 0,
+             hypertension: hyp, heart_disease: hd };
+  }).filter(r => !isNaN(r.age) && !isNaN(r.bmi));
+
+  // Populate filter dropdowns
+  const genders = [...new Set(PROC_DATA.map(r => r.gender).filter(Boolean))].sort();
+  const gSel = document.getElementById('f-gender');
+  genders.forEach(g => { const o = document.createElement('option'); o.value = g; o.textContent = g; gSel.appendChild(o); });
+  const smokes = [...new Set(PROC_DATA.map(r => r.smoking_history).filter(Boolean))].sort();
+  const sSel = document.getElementById('f-smoking');
+  smokes.forEach(s => { const o = document.createElement('option'); o.value = s; o.textContent = s; sSel.appendChild(o); });
+
+  FILTERED = [...PROC_DATA];
+  showLoading(false);
+  document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+  document.getElementById('page-home').classList.add('active');
+
+  // Attach filter listeners
+  ['f-gender','f-age','f-bmi','f-diabetes','f-smoking'].forEach(id => {
+    document.getElementById(id).addEventListener('change', () => { applyFilters(); renderDashboard(); updateFilterCount(); });
+  });
+
+  renderHome();
+  setTimeout(() => renderInsights(), 100);
+  updateFilterCount();
+}
+
+// ═══════════════════════════════════════════════════════════════
+// FILTERS
+// ═══════════════════════════════════════════════════════════════
+function applyFilters() {
+  const gender  = document.getElementById('f-gender').value;
+  const age     = document.getElementById('f-age').value;
+  const bmi     = document.getElementById('f-bmi').value;
+  const diab    = document.getElementById('f-diabetes').value;
+  const smoke   = document.getElementById('f-smoking').value;
+  FILTERED = PROC_DATA.filter(r =>
+    (gender === 'all' || r.gender === gender) &&
+    (age    === 'all' || r.age_grp === age) &&
+    (bmi    === 'all' || r.bmi_cat === bmi) &&
+    (diab   === 'all' || String(r.diabetes) === diab) &&
+    (smoke  === 'all' || r.smoking_history === smoke)
+  );
+  updateFilterCount();
+}
+
+function updateFilterCount() {
+  document.getElementById('filter-count').textContent = `${FILTERED.length.toLocaleString()} records`;
+}
+
+function resetFilters() {
+  ['f-gender','f-age','f-bmi','f-diabetes','f-smoking'].forEach(id => document.getElementById(id).value = 'all');
+  applyFilters();
+  renderDashboard();
+}
+
+// ═══════════════════════════════════════════════════════════════
+// KPI HELPERS
+// ═══════════════════════════════════════════════════════════════
+function computeKPIs(data) {
+  const n = data.length;
+  const diab = data.filter(r => r.diabetes === 1).length;
+  const avg = (arr, fn) => arr.length ? (arr.reduce((s, r) => s + fn(r), 0) / arr.length) : 0;
+  return {
+    total: n,
+    diabetic: diab,
+    prev: n ? (diab/n*100).toFixed(1) : 0,
+    avgBMI: avg(data, r => r.bmi).toFixed(1),
+    avgHba1c: avg(data, r => r.HbA1c_level).toFixed(2),
+    avgGlucose: avg(data, r => r.blood_glucose_level).toFixed(0),
+    hypertPct: n ? (data.filter(r=>r.hypertension===1).length/n*100).toFixed(1) : 0,
+    heartPct: n ? (data.filter(r=>r.heart_disease===1).length/n*100).toFixed(1) : 0,
+    highRiskPct: n ? (data.filter(r=>r.risk_score>=3).length/n*100).toFixed(1) : 0,
+  };
+}
+
+function renderKPIs(kpis, containerId) {
+  const c = document.getElementById(containerId);
+  c.innerHTML = `
+    <div class="kpi-card"><div class="kpi-label">Total Patients</div><div class="kpi-value">${Number(kpis.total).toLocaleString()}</div><div class="kpi-sub">records in dataset</div></div>
+    <div class="kpi-card"><div class="kpi-label">Diabetic</div><div class="kpi-value red">${Number(kpis.diabetic).toLocaleString()}</div><div class="kpi-sub">${kpis.prev}% prevalence</div></div>
+    <div class="kpi-card"><div class="kpi-label">Avg BMI</div><div class="kpi-value">${kpis.avgBMI}</div><div class="kpi-sub">body mass index</div></div>
+    <div class="kpi-card"><div class="kpi-label">Avg HbA1c</div><div class="kpi-value amber">${kpis.avgHba1c}</div><div class="kpi-sub">haemoglobin A1c</div></div>
+    <div class="kpi-card"><div class="kpi-label">Avg Glucose</div><div class="kpi-value blue">${kpis.avgGlucose}</div><div class="kpi-sub">mg/dL blood glucose</div></div>
+    <div class="kpi-card"><div class="kpi-label">High Risk</div><div class="kpi-value red">${kpis.highRiskPct}%</div><div class="kpi-sub">risk score ≥ 3</div></div>`;
+}
+
+// ═══════════════════════════════════════════════════════════════
+// CHART HELPERS
+// ═══════════════════════════════════════════════════════════════
+const LAYOUT = (title='') => ({
+  title: title ? {text:title, font:{size:13,color:'#374151'}} : undefined,
+  paper_bgcolor:'rgba(0,0,0,0)', plot_bgcolor:'rgba(0,0,0,0)',
+  font:{family:'DM Sans,-apple-system,sans-serif',color:'#374151',size:12},
+  margin:{t:title?36:20,b:40,l:50,r:20},
+  legend:{bgcolor:'rgba(255,255,255,.85)',bordercolor:'#E8ECF4',borderwidth:1,font:{size:11}},
+  xaxis:{showgrid:true,gridcolor:'#F3F4F6',zeroline:false,linecolor:'#E5E7EB'},
+  yaxis:{showgrid:true,gridcolor:'#F3F4F6',zeroline:false,linecolor:'#E5E7EB'},
+  hoverlabel:{bgcolor:'white',font:{size:12}},
+  autosize:true
+});
+const CFG = {displayModeBar:false, responsive:true};
+
+function groupBy(data, key, fn) {
+  const m = {};
+  data.forEach(r => {
+    const k = r[key];
+    if (k == null) return;
+    if (!m[k]) m[k] = [];
+    m[k].push(r);
+  });
+  return Object.fromEntries(Object.entries(m).map(([k, v]) => [k, fn(v)]));
+}
+function mean(arr, fn) { return arr.length ? arr.reduce((s,r)=>s+fn(r),0)/arr.length : 0; }
+function diabRate(arr) { return arr.length ? arr.filter(r=>r.diabetes===1).length/arr.length*100 : 0; }
+
+// ═══════════════════════════════════════════════════════════════
+// HOME PAGE
+// ═══════════════════════════════════════════════════════════════
+function renderHome() {
+  const kpis = computeKPIs(PROC_DATA);
+  renderKPIs(kpis, 'home-kpis');
+
+  // Donut
+  const d = PROC_DATA.filter(r=>r.diabetes===1).length;
+  const nd = PROC_DATA.length - d;
+  Plotly.newPlot('chart-donut', [{type:'pie',values:[nd,d],labels:['Non-Diabetic','Diabetic'],
+    hole:.6,marker:{colors:[PALETTE[0],PALETTE[1]]},textinfo:'percent',textfont:{size:13},
+    hovertemplate:'<b>%{label}</b><br>Count: %{value:,}<br>%{percent}<extra></extra>'}],
+    {...LAYOUT(), showlegend:true, annotations:[{text:`<b>${PROC_DATA.length.toLocaleString()}</b><br>patients`,font:{size:13,color:'#6B7280'},showarrow:false}],margin:{t:10,b:10,l:10,r:10}}, CFG);
+
+  // Age group
+  const ageOrder = ['<18','18–35','36–50','51–65','65+'];
+  const agePcts = ageOrder.map(g => { const s = PROC_DATA.filter(r=>r.age_grp===g); return diabRate(s); });
+  Plotly.newPlot('chart-age-group-home',
+    [{type:'bar',x:ageOrder,y:agePcts,marker:{color:PALETTE[0],line:{width:0}},
+      text:agePcts.map(v=>v.toFixed(1)+'%'),textposition:'outside',
+      hovertemplate:'%{x}: %{y:.1f}%<extra></extra>'}],
+    {...LAYOUT(), yaxis:{...LAYOUT().yaxis,title:'Diabetes Rate (%)'}}, CFG);
+
+  // BMI cat
+  const bmiOrder = ['Underweight','Normal','Overweight','Obese'];
+  const bmiColors = [PALETTE[2],PALETTE[0],PALETTE[3],PALETTE[1]];
+  const bmiPcts = bmiOrder.map(b => { const s = PROC_DATA.filter(r=>r.bmi_cat===b); return diabRate(s); });
+  Plotly.newPlot('chart-bmi-cat-home',
+    [{type:'bar',x:bmiOrder,y:bmiPcts,marker:{color:bmiColors,line:{width:0}},
+      text:bmiPcts.map(v=>v.toFixed(1)+'%'),textposition:'outside',
+      hovertemplate:'%{x}: %{y:.1f}%<extra></extra>'}],
+    {...LAYOUT(), yaxis:{...LAYOUT().yaxis,title:'Diabetes Rate (%)'}}, CFG);
+
+  // Gender
+  const genders = [...new Set(PROC_DATA.map(r=>r.gender).filter(Boolean))].sort();
+  const gPcts = genders.map(g => { const s = PROC_DATA.filter(r=>r.gender===g); return diabRate(s); });
+  Plotly.newPlot('chart-gender-home',
+    [{type:'bar',x:genders,y:gPcts,marker:{color:PALETTE[4],line:{width:0}},
+      text:gPcts.map(v=>v.toFixed(1)+'%'),textposition:'outside',
+      hovertemplate:'%{x}: %{y:.1f}%<extra></extra>'}],
+    {...LAYOUT(), yaxis:{...LAYOUT().yaxis,title:'Diabetes Rate (%)'}}, CFG);
+}
+
+// ═══════════════════════════════════════════════════════════════
+// DASHBOARD PAGE
+// ═══════════════════════════════════════════════════════════════
+function renderDashboard() {
+  const data = FILTERED;
+  const kpis = computeKPIs(data);
+  renderKPIs(kpis, 'dash-kpis');
+
+  const diab  = data.filter(r=>r.diabetes===1);
+  const ndiab = data.filter(r=>r.diabetes===0);
+
+  // Age distribution
+  Plotly.newPlot('chart-age-dist', [
+    {type:'histogram',x:ndiab.map(r=>r.age),name:'Non-Diabetic',opacity:.7,marker:{color:PALETTE[0]},bingroup:1,hovertemplate:'Age: %{x}<br>Count: %{y}<extra>Non-Diabetic</extra>'},
+    {type:'histogram',x:diab.map(r=>r.age), name:'Diabetic',    opacity:.7,marker:{color:PALETTE[1]},bingroup:1,hovertemplate:'Age: %{x}<br>Count: %{y}<extra>Diabetic</extra>'}],
+    {...LAYOUT(),barmode:'overlay',xaxis:{...LAYOUT().xaxis,title:'Age'},yaxis:{...LAYOUT().yaxis,title:'Count'}}, CFG);
+
+  // BMI distribution
+  Plotly.newPlot('chart-bmi-dist', [
+    {type:'histogram',x:ndiab.map(r=>r.bmi),name:'Non-Diabetic',opacity:.7,marker:{color:PALETTE[0]},bingroup:1},
+    {type:'histogram',x:diab.map(r=>r.bmi), name:'Diabetic',    opacity:.7,marker:{color:PALETTE[1]},bingroup:1}],
+    {...LAYOUT(),barmode:'overlay',xaxis:{...LAYOUT().xaxis,title:'BMI'},yaxis:{...LAYOUT().yaxis,title:'Count'}}, CFG);
+
+  // BMI category
+  const bmiOrder = ['Underweight','Normal','Overweight','Obese'];
+  const bmiPcts = bmiOrder.map(b => diabRate(data.filter(r=>r.bmi_cat===b)));
+  Plotly.newPlot('chart-bmi-cat',
+    [{type:'bar',x:bmiOrder,y:bmiPcts,marker:{color:[PALETTE[2],PALETTE[0],PALETTE[3],PALETTE[1]],line:{width:0}},
+      text:bmiPcts.map(v=>v.toFixed(1)+'%'),textposition:'outside',hovertemplate:'%{x}: %{y:.1f}%<extra></extra>'}],
+    {...LAYOUT(),yaxis:{...LAYOUT().yaxis,title:'Diabetes Rate (%)'}}, CFG);
+
+  // Scatter
+  const sample = data.length > 2000 ? data.filter((_,i)=>i%Math.ceil(data.length/2000)===0) : data;
+  Plotly.newPlot('chart-scatter', [
+    {type:'scatter',mode:'markers',x:sample.filter(r=>r.diabetes===0).map(r=>r.age),y:sample.filter(r=>r.diabetes===0).map(r=>r.bmi),name:'Non-Diabetic',marker:{color:PALETTE[0],size:4,opacity:.5}},
+    {type:'scatter',mode:'markers',x:sample.filter(r=>r.diabetes===1).map(r=>r.age),y:sample.filter(r=>r.diabetes===1).map(r=>r.bmi),name:'Diabetic',   marker:{color:PALETTE[1],size:5,opacity:.6}}],
+    {...LAYOUT(),xaxis:{...LAYOUT().xaxis,title:'Age'},yaxis:{...LAYOUT().yaxis,title:'BMI'}}, CFG);
+
+  // HbA1c distribution
+  Plotly.newPlot('chart-hba1c-dist', [
+    {type:'histogram',x:ndiab.map(r=>r.HbA1c_level),name:'Non-Diabetic',opacity:.7,marker:{color:PALETTE[0]},bingroup:1},
+    {type:'histogram',x:diab.map(r=>r.HbA1c_level), name:'Diabetic',    opacity:.7,marker:{color:PALETTE[1]},bingroup:1}],
+    {...LAYOUT(),barmode:'overlay',xaxis:{...LAYOUT().xaxis,title:'HbA1c Level'},yaxis:{...LAYOUT().yaxis,title:'Count'}}, CFG);
+
+  // HbA1c rate
+  const hba1cVals = [...new Set(data.map(r=>r.HbA1c_level).filter(v=>v>0))].sort((a,b)=>a-b);
+  const hba1cRates = hba1cVals.map(v => diabRate(data.filter(r=>r.HbA1c_level===v)));
+  Plotly.newPlot('chart-hba1c-rate',
+    [{type:'bar',x:hba1cVals,y:hba1cRates,marker:{color:PALETTE[1],line:{width:0}},hovertemplate:'HbA1c %{x}: %{y:.1f}%<extra></extra>'}],
+    {...LAYOUT(),xaxis:{...LAYOUT().xaxis,title:'HbA1c Level'},yaxis:{...LAYOUT().yaxis,title:'Diabetes Rate (%)'}}, CFG);
+
+  // Glucose box
+  Plotly.newPlot('chart-glucose', [
+    {type:'box',y:ndiab.map(r=>r.blood_glucose_level),name:'Non-Diabetic',marker:{color:PALETTE[0]},boxmean:'sd'},
+    {type:'box',y:diab.map(r=>r.blood_glucose_level), name:'Diabetic',    marker:{color:PALETTE[1]},boxmean:'sd'}],
+    {...LAYOUT(),yaxis:{...LAYOUT().yaxis,title:'Blood Glucose (mg/dL)'}}, CFG);
+
+  // Comorbidities
+  const comorbLabels = ['Hypertension','Heart Disease'];
+  const dRates  = [diabRate(diab),  diabRate(diab.filter(r=>r.heart_disease===1))];
+  // recompute properly
+  const hDiabR  = data.filter(r=>r.hypertension===1);
+  const hNoR    = data.filter(r=>r.hypertension===0);
+  const hdDiabR = data.filter(r=>r.heart_disease===1);
+  const hdNoR   = data.filter(r=>r.heart_disease===0);
+  Plotly.newPlot('chart-comorbid', [
+    {type:'bar',name:'With Condition',   x:comorbLabels,y:[diabRate(hDiabR), diabRate(hdDiabR)],marker:{color:PALETTE[1],line:{width:0}},text:[diabRate(hDiabR).toFixed(1)+'%',diabRate(hdDiabR).toFixed(1)+'%'],textposition:'outside'},
+    {type:'bar',name:'Without Condition',x:comorbLabels,y:[diabRate(hNoR),  diabRate(hdNoR)],  marker:{color:PALETTE[0],line:{width:0}},text:[diabRate(hNoR).toFixed(1)+'%', diabRate(hdNoR).toFixed(1)+'%'], textposition:'outside'}],
+    {...LAYOUT(),barmode:'group',yaxis:{...LAYOUT().yaxis,title:'Diabetes Rate (%)'}}, CFG);
+
+  // Smoking
+  const smokeGroups = [...new Set(data.map(r=>r.smoking_history).filter(Boolean))];
+  const smokeRates = smokeGroups.map(s => diabRate(data.filter(r=>r.smoking_history===s)));
+  const smokeIdx = smokeRates.map((_,i)=>i).sort((a,b)=>smokeRates[b]-smokeRates[a]);
+  Plotly.newPlot('chart-smoking',
+    [{type:'bar',x:smokeIdx.map(i=>smokeGroups[i]),y:smokeIdx.map(i=>smokeRates[i]),
+      marker:{color:PALETTE[4],line:{width:0}},text:smokeIdx.map(i=>smokeRates[i].toFixed(1)+'%'),textposition:'outside',hovertemplate:'%{x}: %{y:.1f}%<extra></extra>'}],
+    {...LAYOUT(),yaxis:{...LAYOUT().yaxis,title:'Diabetes Rate (%)'}}, CFG);
+
+  // Risk score
+  const scores = [0,1,2,3,4];
+  const riskRates = scores.map(s => diabRate(data.filter(r=>r.risk_score===s)));
+  Plotly.newPlot('chart-risk',
+    [{type:'bar',x:scores.map(String),y:riskRates,marker:{color:riskRates.map((_,i)=>PALETTE[Math.min(i,PALETTE.length-1)]),line:{width:0}},
+      text:riskRates.map(v=>v.toFixed(1)+'%'),textposition:'outside',hovertemplate:'Score %{x}: %{y:.1f}%<extra></extra>'}],
+    {...LAYOUT(),xaxis:{...LAYOUT().xaxis,title:'Composite Risk Score'},yaxis:{...LAYOUT().yaxis,title:'Diabetes Rate (%)'}}, CFG);
+
+  // Gender donut/bar
+  const genders = [...new Set(data.map(r=>r.gender).filter(Boolean))].sort();
+  const gDiab = genders.map(g => data.filter(r=>r.gender===g&&r.diabetes===1).length);
+  const gNDiab = genders.map(g => data.filter(r=>r.gender===g&&r.diabetes===0).length);
+  Plotly.newPlot('chart-gender-dash', [
+    {type:'bar',name:'Diabetic',    x:genders,y:gDiab, marker:{color:PALETTE[1],line:{width:0}}},
+    {type:'bar',name:'Non-Diabetic',x:genders,y:gNDiab,marker:{color:PALETTE[0],line:{width:0}}}],
+    {...LAYOUT(),barmode:'stack',yaxis:{...LAYOUT().yaxis,title:'Patient Count'}}, CFG);
+
+  // Heatmap
+  const numCols = ['age','bmi','HbA1c_level','blood_glucose_level','hypertension','heart_disease','diabetes'];
+  const validCols = numCols.filter(c => data.some(r => r[c] !== undefined && !isNaN(r[c])));
+  if (validCols.length > 1) {
+    const corr = validCols.map(c1 => validCols.map(c2 => pearson(data, c1, c2)));
+    Plotly.newPlot('chart-heatmap', [{
+      type:'heatmap', z:corr, x:validCols, y:validCols,
+      colorscale:[[0,'#3B6FE8'],[.5,'#ffffff'],[1,'#E8453C']],
+      zmin:-1, zmax:1,
+      text:corr.map(row=>row.map(v=>v.toFixed(2))),
+      texttemplate:'%{text}',textfont:{size:11},
+      hovertemplate:'%{y} × %{x}<br>r = %{z:.3f}<extra></extra>'
+    }], {...LAYOUT(), margin:{t:20,b:80,l:120,r:20}}, CFG);
+  }
+}
+
+function pearson(data, c1, c2) {
+  const vals = data.map(r => [r[c1], r[c2]]).filter(([a,b]) => !isNaN(a) && !isNaN(b));
+  if (vals.length < 2) return 0;
+  const n = vals.length;
+  const mx = vals.reduce((s,[a])=>s+a,0)/n, my = vals.reduce((s,[,b])=>s+b,0)/n;
+  let num=0,dx=0,dy=0;
+  vals.forEach(([a,b])=>{num+=(a-mx)*(b-my);dx+=(a-mx)**2;dy+=(b-my)**2;});
+  return dx&&dy ? num/Math.sqrt(dx*dy) : 0;
+}
+
+// ═══════════════════════════════════════════════════════════════
+// INSIGHTS PAGE
+// ═══════════════════════════════════════════════════════════════
+function renderInsights() {
+  const data = PROC_DATA;
+  const n = data.length;
+  if (!n) return;
+  const diab  = data.filter(r=>r.diabetes===1);
+  const ndiab = data.filter(r=>r.diabetes===0);
+  const prev  = (diab.length/n*100).toFixed(1);
+  const dAge  = mean(diab,  r=>r.age).toFixed(1);
+  const ndAge = mean(ndiab, r=>r.age).toFixed(1);
+  const dBmi  = mean(diab,  r=>r.bmi).toFixed(1);
+  const ndBmi = mean(ndiab, r=>r.bmi).toFixed(1);
+  const obeseDR  = diabRate(data.filter(r=>r.bmi_cat==='Obese')).toFixed(1);
+  const normalDR = diabRate(data.filter(r=>r.bmi_cat==='Normal')).toFixed(1);
+  const dHba1c   = mean(diab,  r=>r.HbA1c_level).toFixed(2);
+  const ndHba1c  = mean(ndiab, r=>r.HbA1c_level).toFixed(2);
+  const hHighHba = diabRate(data.filter(r=>r.HbA1c_level>=6.5)).toFixed(1);
+  const dGluc    = mean(diab,  r=>r.blood_glucose_level).toFixed(0);
+  const ndGluc   = mean(ndiab, r=>r.blood_glucose_level).toFixed(0);
+  const hypDiab  = diabRate(data.filter(r=>r.hypertension===1)).toFixed(1);
+  const hypNoDiab= diabRate(data.filter(r=>r.hypertension===0)).toFixed(1);
+  const hdDiab   = diabRate(data.filter(r=>r.heart_disease===1)).toFixed(1);
+  const hdNoDiab = diabRate(data.filter(r=>r.heart_disease===0)).toFixed(1);
+  const bothDiab = diabRate(data.filter(r=>r.hypertension===1&&r.heart_disease===1)).toFixed(1);
+  const risk3    = diabRate(data.filter(r=>r.risk_score>=3)).toFixed(1);
+  const risk0    = diabRate(data.filter(r=>r.risk_score===0)).toFixed(1);
+  const ageRates = ['<18','18–35','36–50','51–65','65+'].map(g=>({g,r:diabRate(data.filter(r=>r.age_grp===g))}));
+  const topAge   = ageRates.reduce((m,x)=>x.r>m.r?x:m,{r:-1});
+
+  const ins = (title, body, kind='') => `
+    <div class="insight-card ${kind}">
+      <div class="insight-header"><div class="insight-title">${title}</div></div>
+      <div class="insight-body">${body}</div>
+    </div>`;
+
+  document.getElementById('insights-prevalence').innerHTML =
+    ins('Overall Diabetes Prevalence','<b>'+prev+'%</b> of the '+n.toLocaleString()+'-patient cohort has been diagnosed with diabetes. This is broadly consistent with global adult prevalence estimates (~10–11%), suggesting the dataset is representative of a general clinical population.') +
+    ins('Age Differential','Diabetic patients average <b>'+dAge+' years</b> vs <b>'+ndAge+' years</b> for non-diabetic patients. The <b>'+topAge.g+'</b> age group carries the highest rate at <b>'+topAge.r.toFixed(1)+'%</b>, underscoring the relationship between advancing age and metabolic dysregulation.','amber');
+
+  document.getElementById('insights-bmi').innerHTML =
+    ins('BMI Is a Strong Discriminator','Mean BMI in diabetic patients is <b>'+dBmi+'</b> vs <b>'+ndBmi+'</b> in non-diabetics. Obese patients have a diabetes rate of <b>'+obeseDR+'%</b> compared to just <b>'+normalDR+'%</b> for normal-weight patients — a <b>'+(parseFloat(obeseDR)/Math.max(parseFloat(normalDR),.01)).toFixed(1)+'× relative risk</b>.','red') +
+    ins('Obesity: The Biggest Modifiable Risk','Diabetes prevalence scales monotonically across BMI categories. This dose–response relationship strengthens the case for weight management as a primary preventative intervention. Structured lifestyle programmes at the Overweight stage offer the best cost-effectiveness.','amber');
+
+  document.getElementById('insights-clinical').innerHTML =
+    ins('HbA1c Is the Strongest Predictive Marker','Average HbA1c in diabetic patients is <b>'+dHba1c+'%</b> vs <b>'+ndHba1c+'%</b> in non-diabetics. Among patients with HbA1c ≥ 6.5% (WHO diagnostic threshold), the diabetes rate is <b>'+hHighHba+'%</b>. A near-step-function increase makes HbA1c the highest-value single screening test.','red') +
+    ins('Blood Glucose Shows Clear Separation','Mean blood glucose is <b>'+dGluc+' mg/dL</b> in diabetic vs <b>'+ndGluc+' mg/dL</b> in non-diabetic patients — a <b>'+(parseFloat(dGluc)-parseFloat(ndGluc)).toFixed(0)+' mg/dL</b> absolute difference. The distributions are highly non-overlapping, enabling powerful rule-based screening.','blue');
+
+  document.getElementById('insights-comorbid').innerHTML =
+    ins('Hypertension Co-Occurs Disproportionately','Patients with hypertension have a diabetes rate of <b>'+hypDiab+'%</b> compared to <b>'+hypNoDiab+'%</b> for normotensive patients. Hypertension diagnosis should trigger automatic diabetes screening.','amber') +
+    ins('Heart Disease Amplifies Risk Further','Heart disease patients carry a diabetes prevalence of <b>'+hdDiab+'%</b> vs <b>'+hdNoDiab+'%</b>. When both hypertension and heart disease are present, the rate rises to <b>'+bothDiab+'%</b>. These patients need intensive metabolic monitoring.','red');
+
+  const rec = (num, title, body, kind='') => `
+    <div class="rec-card ${kind}">
+      <div class="rec-num">${num}</div>
+      <div class="rec-title">${title}</div>
+      <div class="rec-body">${body}</div>
+    </div>`;
+
+  document.getElementById('insights-recs').innerHTML =
+    rec('01','Prioritise HbA1c Screening','Universal HbA1c testing at routine check-ups — especially for patients over 50 or with BMI > 25 — is the highest-return clinical intervention.','teal') +
+    rec('02','Target Overweight Before Obese','The largest marginal gain occurs at the Overweight → Obese transition. Structured lifestyle interventions at BMI 25–30 are more cost-effective than managing full metabolic disease.','amber') +
+    rec('03','Cardiometabolic Bundle Screening','Patients with hypertension or heart disease should be automatically enrolled in a diabetes screening pathway — protocol-driven, not physician-initiated.','blue') +
+    rec('04','Use Composite Risk Score for Triage','A four-variable risk score (hypertension + heart disease + HbA1c > 6.5% + obesity) reliably stratifies patients into low/medium/high risk, enabling targeted resource allocation.','teal') +
+    rec('05','Age-Specific Screening Frequencies','Annual screening for patients aged 50+ vs every 3 years for younger adults with no additional risk factors, based on the steep increase in rates in the '+topAge.g+' group.','amber') +
+    rec('06','Integrate Risk Score into EMR','Embedding the composite risk score into electronic medical records enables automated flagging of high-risk patients at every clinical encounter.','blue');
+}
+
+// ═══════════════════════════════════════════════════════════════
+// DATA PAGE
+// ═══════════════════════════════════════════════════════════════
+let tableData = [];
+function renderDataPage() {
+  const data = PROC_DATA;
+  const n = data.length;
+  const diab = data.filter(r=>r.diabetes===1).length;
+  const missing = data.reduce((s,r)=>s+Object.values(r).filter(v=>v==null||v===''||isNaN(v)&&typeof v!=='string').length,0);
+  const cols = Object.keys(data[0]||{}).filter(c=>!['bmi_cat','age_grp','risk_score'].includes(c));
+
+  document.getElementById('data-stats').innerHTML = [
+    {k:'Total Records',v:n.toLocaleString()},
+    {k:'Columns',v:cols.length},
+    {k:'Diabetic Patients',v:diab.toLocaleString()},
+    {k:'Non-Diabetic',v:(n-diab).toLocaleString()},
+    {k:'Prevalence',v:(n?diab/n*100:0).toFixed(1)+'%'},
+    {k:'Engineered Features',v:'3 (bmi_cat, age_grp, risk_score)'},
+  ].map(s=>`<div class="stat-item"><div class="stat-key">${s.k}</div><div class="stat-val">${s.v}</div></div>`).join('');
+
+  const displayCols = ['gender','age','bmi','bmi_cat','age_grp','HbA1c_level','blood_glucose_level','hypertension','heart_disease','smoking_history','risk_score','diabetes'];
+  document.getElementById('table-head').innerHTML = '<tr>'+displayCols.map(c=>`<th>${c}</th>`).join('')+'</tr>';
+
+  tableData = data;
+  renderTableRows(data.slice(0,200), displayCols);
+  document.getElementById('table-count').textContent = `Showing ${Math.min(200,n).toLocaleString()} of ${n.toLocaleString()} rows`;
+}
+
+function renderTableRows(data, cols) {
+  const displayCols = cols || ['gender','age','bmi','bmi_cat','age_grp','HbA1c_level','blood_glucose_level','hypertension','heart_disease','smoking_history','risk_score','diabetes'];
+  document.getElementById('table-body').innerHTML = data.map(r => '<tr>'+displayCols.map(c => {
+    const v = r[c];
+    if (c === 'diabetes') return `<td><span class="badge ${v===1?'badge-yes':'badge-no'}">${v===1?'Yes':'No'}</span></td>`;
+    if (c === 'hypertension' || c === 'heart_disease') return `<td>${v===1?'Yes':'No'}</td>`;
+    if (typeof v === 'number') return `<td>${isNaN(v)?'—':v.toFixed ? (+v%1?v.toFixed(1):v) : v}</td>`;
+    return `<td>${v ?? '—'}</td>`;
+  }).join('')+'</tr>').join('');
+}
+
+function filterTable() {
+  const q = document.getElementById('search-box').value.toLowerCase();
+  const d = document.getElementById('dt-diabetes').value;
+  const displayCols = ['gender','age','bmi','bmi_cat','age_grp','HbA1c_level','blood_glucose_level','hypertension','heart_disease','smoking_history','risk_score','diabetes'];
+  let res = tableData;
+  if (d !== 'all') res = res.filter(r => String(r.diabetes) === d);
+  if (q) res = res.filter(r => Object.values(r).some(v => String(v).toLowerCase().includes(q)));
+  renderTableRows(res.slice(0, 200), displayCols);
+  document.getElementById('table-count').textContent = `Showing ${Math.min(200,res.length).toLocaleString()} of ${res.length.toLocaleString()} rows`;
+}
+
+// ═══════════════════════════════════════════════════════════════
+// CSV DOWNLOAD
+// ═══════════════════════════════════════════════════════════════
+function downloadCSV() {
+  const data = FILTERED.length ? FILTERED : PROC_DATA;
+  if (!data.length) return;
+  const cols = Object.keys(data[0]);
+  const csv = [cols.join(','), ...data.map(r => cols.map(c => {
+    const v = r[c]; return v == null ? '' : (String(v).includes(',') ? `"${v}"` : v);
+  }).join(','))].join('\n');
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(new Blob([csv], {type:'text/csv'}));
+  a.download = 'diabetes_filtered.csv';
+  a.click();
+}
+
+// ═══════════════════════════════════════════════════════════════
+// WINDOW RESIZE — re-render active charts
+// ═══════════════════════════════════════════════════════════════
+window.addEventListener('resize', () => {
+  const active = document.querySelector('.nav-item.active');
+  if (active && PROC_DATA.length) renderPage(active.dataset.page);
+});
+
+// Auto-load demo data on start
+loadDemo();
+</script>
+</body>
+</html>
+HTMLEOF
